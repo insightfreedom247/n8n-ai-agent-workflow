@@ -1,124 +1,105 @@
 {
-  "name": "AI Agent Workflow",
+  "name": "Telegram AI Assistant",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "ai-agent",
+        "updateTypes": ["message"],
         "options": {}
       },
       "id": "96398d1c-778d-4c42-8f57-7df11f669738",
-      "name": "Webhook",
-      "type": "n8n-nodes-base.webhook",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1,
       "position": [
         250,
         300
-      ]
+      ],
+      "color": "#4C97EE",
+      "icon": "fa:telegram",
+      "notes": "Nhận tin nhắn từ Telegram"
     },
     {
       "parameters": {
-        "jsCode": "// Xử lý input từ webhook\nconst input = $input.first();\nconst userMessage = input.body.message;\n\n// Chuẩn bị context cho AI\nconst context = {\n  message: userMessage,\n  timestamp: new Date().toISOString(),\n  sessionId: input.body.sessionId || Math.random().toString(36).substring(7)\n};\n\nreturn {\n  json: {\n    context: context,\n    systemPrompt: \"Bạn là một AI assistant thông minh. Hãy trả lời câu hỏi sau một cách chuyên nghiệp và hữu ích:\",\n    userMessage: userMessage\n  }\n};"
+        "functionCode": "// Xử lý tin nhắn từ Telegram\nconst message = $input.first().message;\nconst chatId = message.chat.id;\n\nreturn {\n  json: {\n    chatId: chatId,\n    message: message.text,\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "id": "7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p",
-      "name": "Prepare Context",
-      "type": "n8n-nodes-base.code",
+      "name": "AI Agent",
+      "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        450,
+        500,
         300
-      ]
+      ],
+      "color": "#666666",
+      "icon": "fa:robot",
+      "notes": "Tools Agent"
     },
     {
       "parameters": {
-        "authentication": "apiKey",
-        "apiKey": "{{$node[\"Credentials\"].json[\"openaiApiKey\"]}}",
-        "model": "gpt-4",
-        "prompt": "={{$node[\"Prepare Context\"].json[\"systemPrompt\"]}}\n\nUser: {{$node[\"Prepare Context\"].json[\"userMessage\"]}}\n\nAssistant:",
+        "resource": "chat",
+        "prompt": "={{$node[\"AI Agent\"].json[\"message\"]}}",
         "options": {
-          "temperature": 0.7,
-          "maxTokens": 2000
+          "model": "gpt-4"
         }
       },
-      "id": "3q4r5s6t-7u8v-9w0x-1y2z-3a4b5c6d7e8f",
-      "name": "OpenAI",
-      "type": "n8n-nodes-base.openAi",
+      "id": "3q4r5s6t-7u8v-9w0x-1y2z-3a4b5c6d7e8f", 
+      "name": "OpenRouter Chat Model",
+      "type": "n8n-nodes-base.openRouter",
       "typeVersion": 1,
       "position": [
-        650,
-        300
-      ]
+        500,
+        500
+      ],
+      "color": "#404040",
+      "icon": "fa:comments",
+      "notes": "Chat Model"
     },
     {
       "parameters": {
-        "jsCode": "// Xử lý response từ OpenAI\nconst aiResponse = $input.first();\nconst context = $node[\"Prepare Context\"].json.context;\n\n// Lưu context và response\nconst result = {\n  sessionId: context.sessionId,\n  timestamp: new Date().toISOString(),\n  userMessage: context.message,\n  aiResponse: aiResponse.text,\n  metadata: {\n    model: \"gpt-4\",\n    context: context\n  }\n};\n\nreturn { json: result };"
-      },
-      "id": "9g0h1i2j-3k4l-5m6n-7o8p-9q0r1s2t3u4v",
-      "name": "Process Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [
-        850,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{$node[\"Process Response\"].json}}",
-        "options": {
-          "responseCode": 200
-        }
+        "resource": "file",
+        "operation": "download",
+        "fileId": "={{$node[\"AI Agent\"].json[\"fileId\"]}}",
+        "options": {}
       },
       "id": "5w6x7y8z-9a0b-1c2d-3e4f-5g6h7i8j9k0l",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
+      "name": "Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 1,
       "position": [
-        1050,
+        750,
         300
-      ]
+      ],
+      "color": "#1A73E8",
+      "icon": "fa:google-drive",
+      "notes": "Lưu trữ và tải file"
     }
   ],
   "connections": {
-    "Webhook": {
+    "Telegram Trigger": {
       "main": [
         [
           {
-            "node": "Prepare Context",
+            "node": "AI Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Context": {
+    "AI Agent": {
       "main": [
         [
           {
-            "node": "OpenAI",
+            "node": "Google Drive",
             "type": "main",
             "index": 0
           }
         ]
-      ]
-    },
-    "OpenAI": {
-      "main": [
+      ],
+      "Chat Model": [
         [
           {
-            "node": "Process Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Process Response": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
+            "node": "OpenRouter Chat Model",
             "type": "main",
             "index": 0
           }
@@ -126,16 +107,19 @@
       ]
     }
   },
-  "active": false,
   "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
     "saveExecutionProgress": true,
     "saveManualExecutions": true,
+    "timezone": "default",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "tags": [
-    "ai",
-    "agent",
-    "automation"
-  ],
-  "pinData": {}
+  "tags": ["telegram", "ai", "automation"],
+  "pinData": {},
+  "versionId": 1,
+  "meta": {
+    "instanceId": "YOUR_INSTANCE_ID"
+  }
 }
